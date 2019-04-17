@@ -4103,12 +4103,9 @@ ig.module('game.entities.enemy').requires('impact.entity', 'impact.font', 'game.
         getWordWithLength: function(l) {
             var w = 'wtf';
             for (var i = 0; i < 20; i++) {
-                if (l >= 2 && l <= 12) {
+                if (l >= 1 && l <= 12) {
                     w = ig.game.wordlist[l].random();
                 } 
-                else {
-                    w = String.fromCharCode('а'.charCodeAt(0) + (Math.random() * 33).floor());
-                }
                 if (!ig.game.targets[w.charAt(0).toLowerCase()].length) {
                     return w;
                 }
@@ -5152,8 +5149,18 @@ function processText(text) {
         }
     }
     if (englishWords.length > russianWords.length) {
+        var first = 'a'.charCodeAt(0)
+          , last = 'z'.charCodeAt(0);
+        for (var i = first; i <= last; i++) {
+            englishWords.push(String.fromCharCode(i));
+        }
         return englishWords; 
     } else {
+        var first_cyr = 'а'.charCodeAt(0);
+        var last_cyr = 'я'.charCodeAt(0);
+        for (var i = first_cyr; i <= last_cyr; i++) {
+            russianWords.push(String.fromCharCode(i));
+        }
         return russianWords;
     }
 }
