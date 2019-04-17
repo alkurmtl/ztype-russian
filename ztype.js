@@ -5508,6 +5508,14 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
                 this.player.spawnEMP();
                 return false;
             }
+            if (c == ig.KEY.SPACE) {
+                if (this.currentTarget) {
+                    this.currentTarget.cancel();
+                    this.cancelSound.play();
+                }
+                ev.preventDefault();
+                return false;
+            }
             if (c == ig.KEY.BACKSPACE) {
                 if (this.currentTarget) {
                     this.currentTarget.cancel();
