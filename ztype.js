@@ -3597,9 +3597,9 @@ ig.module('game.ease').defines(function() {
 // lib/game/menus/title.js
 ig.baked = true;
 ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-stats', 'game.ease').defines(function() {
-    MenuItemNormalMode = MenuItem.extend({
+    MenuItemRus = MenuItem.extend({
         getText: function() {
-            return 'new game';
+            return 'new Russian game';
         },
         ok: function() {
             /*if (url.length > 0) {
@@ -3615,7 +3615,15 @@ ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-s
                 req.send();
             }
             setTimeout(function() { ig.game.setGame(); }, 3000);*/
-            ig.game.setGame();
+            ig.game.setGame('russian.txt');
+        },
+    });
+    MenuItemEng = MenuItem.extend({
+        getText: function() {
+            return 'new English game';
+        },
+        ok: function() {
+            ig.game.setGame('english.txt');
         },
     });
     /*MenuItemSettingsMenu = MenuItem.extend({
@@ -3669,12 +3677,13 @@ ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-s
         }
     });
     MenuTitle = Menu.extend({
-        itemClasses: [MenuItemNormalMode, MenuItemRemoveAds, MenuItemGameCenter],
+        itemClasses: [MenuItemRus, MenuItemEng, MenuItemRemoveAds, MenuItemGameCenter],
         scale: 0.75,
         y: 0,
         init: function() {
             this.itemClasses = [];
-            this.itemClasses.push(MenuItemNormalMode);
+            this.itemClasses.push(MenuItemRus);
+            this.itemClasses.push(MenuItemEng);
             if (window.Ejecta && !localStorage.getItem('removeAds')) {
                 this.itemClasses.push(MenuItemRemoveAds);
             }
@@ -3687,14 +3696,14 @@ ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-s
                 //this.itemClasses.push(MenuItemStats);
             }
             if (!window.Cocoon && !window.Ejecta) {
-                this.itemClasses.push(MenuItemChangeURL);
+                // this.itemClasses.push(MenuItemChangeURL);
             }
             this.parent();
             this.items[0].y = 740;
             this.items[0].alpha = 0.9;
             if (this.items.length > 1) {
                 this.items[1].y = ig.system.height / this.scale - 140;
-                this.items[1].alpha = 0.4;
+                this.items[1].alpha = 0.9;
                 if (this.items.length > 2) {
                     this.items[2].y = ig.system.height / this.scale - 90;
                     this.items[2].alpha = 0.4;
@@ -5252,14 +5261,14 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
                 ig.doc.fastForwardScanAnimation();
             }
         },
-        reset: function() {
+        reset: function(defaultDict) {
 			var text = document.getElementById('text').value;
             var wordsList = [];
             if (text.length > 0) {
                 wordsList = processText(text);
             } else {
                 var rawFile = new XMLHttpRequest();
-                rawFile.open("GET", 'russian.txt', false);
+                rawFile.open("GET", defaultDict, false);
                 rawFile.onreadystatechange = function ()
                 {
                     if(rawFile.readyState === 4)
@@ -5585,8 +5594,8 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
                 }
             }
         },
-        setGame: function() {
-            this.reset();
+        setGame: function(defaultDict) {
+            this.reset(defaultDict);
             console.log(ig.doc);
             this.gameTransitionTimer = new ig.Timer(2);
             var sx = ig.system.width / 2 - 6
