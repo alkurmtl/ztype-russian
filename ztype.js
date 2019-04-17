@@ -1672,7 +1672,6 @@ ig.module('impact.impact').requires('dom.ready', 'impact.loader', 'impact.system
         ig.soundManager = new ig.SoundManager();
         ig.music = new ig.Music();
         ig.ready = true;
-        console.log(ig.doc);
         var loader = new (loaderClass || ig.Loader)(gameClass,ig.resources);
         loader.load();
     }
@@ -3603,6 +3602,19 @@ ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-s
             return 'new game';
         },
         ok: function() {
+            /*if (url.length > 0) {
+                var req = new XMLHttpRequest();
+                req.onload = function() {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(req.responseText, "text/html");
+                    console.log(doc.body);
+                    ig.doc = new ig.DocumentScanner(doc.body);
+                    console.log(ig.doc);
+                }
+                req.open("GET", "https://cors-anywhere.herokuapp.com/" + url);
+                req.send();
+            }
+            setTimeout(function() { ig.game.setGame(); }, 3000);*/
             ig.game.setGame();
         },
     });
@@ -3614,14 +3626,14 @@ ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-s
             ig.game.menu = new MenuSettings();
         },
     });*/
-    /*MenuItemChangeURL = MenuItem.extend({
+    MenuItemChangeURL = MenuItem.extend({
         getText: function() {
             return (ig.doc ? 'try a different text' : 'load your own text');
         },
         ok: function() {
             document.location.href = '/load'
         },
-    });*/
+    });
     MenuItemRemoveAds = MenuItem.extend({
         getText: function() {
             return 'remove ads';
@@ -3675,7 +3687,7 @@ ig.module('game.menus.title').requires('game.menus.base', 'game.menus.detailed-s
                 //this.itemClasses.push(MenuItemStats);
             }
             if (!window.Cocoon && !window.Ejecta) {
-                //this.itemClasses.push(MenuItemChangeURL);
+                this.itemClasses.push(MenuItemChangeURL);
             }
             this.parent();
             this.items[0].y = 740;
@@ -4875,14 +4887,45 @@ ig.module('plugins.rise-loader').requires('impact.loader').defines(function() {
 ig.baked = true;
 ig.module('game.document-scanner').defines(function() {
     "use strict";
+    ig.chunkify = function(a, n, balanced) {
+        if (n < 2) {
+            return [a];
+        }
+        var len = a.length,
+            out = [],
+            i = 0,
+            size;
+        if (len % n === 0) {
+            size = Math.floor(len / n);
+            while (i < len) {
+                out.push(a.slice(i, i += size));
+            }
+        } else if (balanced) {
+            while (i < len) {
+                size = Math.ceil((len - i) / n--);
+                out.push(a.slice(i, i += size));
+            }
+        } else {
+            n--;
+            size = Math.floor(len / n);
+            if (len % size === 0) {
+                size--;
+            }
+            while (i < size * n) {
+                out.push(a.slice(i, i += size));
+            }
+            out.push(a.slice(size * n));
+        }
+        return out;
+    }
     ig.DocumentScanner = ig.Class.extend({
-        _reSkipNode: null ,
-        _reSkipClass: null ,
-        _reTextNode: null ,
-        _reHasWords: null ,
-        _reSplitSentences: null ,
-        _currentFragment: null ,
-        _animationDoneCallback: null ,
+        _reSkipNode: null,
+        _reSkipClass: null,
+        _reTextNode: null,
+        _reHasWords: null,
+        _reSplitSentences: null,
+        _currentFragment: null,
+        _animationDoneCallback: null,
         _hurry: false,
         _scrollAnimationId: 0,
         looksLikeEnglish: false,
@@ -4891,27 +4934,25 @@ ig.module('game.document-scanner').defines(function() {
         highlightClass: 'ztype-current-text-fragment',
         init: function(rootElement) {
             this._reSkipNode = /^(script|style|head|link|meta|button|input|nav|label|img|svg|canvas|ins)$/i;
-            this._reSkipClass = /head|foot|links|menu|nav|pagetop|subtext|side|notice|overlay|siteSub|infobox|hatnote|abstract|caption|disclaimer|byline/i;
+            this._reSkipClass = /head|mw-jump-link|foot|links|menu|nav|pagetop|subtext|side|notice|overlay|siteSub|infobox|hatnote|abstract|caption|disclaimer|byline/i;
             this._reTextNode = /^(em|strong|b|i|mark|cite|dfn|small|del|ins|sub|sup|a|#text|span|code)$/i;
             this._reHasWords = /\b[^\d\W]{2,}\b/g;
             this._reSplitSentences = /([.?!:]+[\s\[\]]+)(?=\w)/g;
             this._reHasEnglishWords = /\b(the|be|to|of|and|that|have|it|for|not|on|with|he|as|you|do|at)\b/i;
-            /*this.$scanOverlay = ig.$('#ztype-overlay');
-            this.$scanProgress = ig.$('#ztype-scan-progress');
-            this.$scanOverlay.className = 'ztype-scanning';*/
+            //this.$scanOverlay = ig.$('#ztype-overlay');
+            //this.$scanProgress = ig.$('#ztype-scan-progress');
+            //this.$scanOverlay.className = 'ztype-scanning';
             var elements = this.traverse(rootElement);
-            console.log(elements.length)
             this.fragments = [];
             for (var i = 0; i < elements.length; i++) {
-                this.splitIntoFragments(elements[i], this.fragments);
+                this.splitIntoFragments(elements[i], this.fragments, elements.length);
             }
         },
         traverse: function(element, elements) {
-            console.log(element);
             if (!elements) {
                 elements = [];
             }
-            var style = element instanceof HTMLElement ? window.getComputedStyle(element) : null ;
+            var style = element instanceof HTMLElement ? window.getComputedStyle(element) : null;
             if (element.nodeName.match(this._reSkipNode) || (element.id && element.id.match(this._reSkipClass)) || (element.className && element.className.match(this._reSkipClass)) || (style && (style.display == 'hidden' || style.opacity === "0"))) {
                 if (element.textContent.length < 3000) {
                     return elements;
@@ -4928,24 +4969,42 @@ ig.module('game.document-scanner').defines(function() {
                 return elements;
             }
             if (this.childrenAreText(element)) {
+                console.log(element);
                 var text = element.textContent;
                 var tm = text.match(this._reHasWords);
-                if (element.offsetParent !== null  && (element.nodeName === '#text' || element.offsetHeight > 0) && tm && tm.length > 0) {
+                if (/*element.offsetParent !== null && (element.nodeName === '#text' || element.offsetHeight > 0) &&*/ tm && tm.length > 0) {
                     elements.push(element);
                     return elements;
                 }
-            } 
-            else {
+            } else {
                 for (var i = 0; i < element.childNodes.length; i++) {
                     this.traverse(element.childNodes[i], elements);
                 }
             }
             return elements;
         },
-        splitIntoFragments: function(element, fragments) {
+        splitIntoFragments: function(element, fragments, totalElements) {
             var parent = element.parentNode;
             var text = element.textContent;
             var sentences = text.replace(this._reSplitSentences, '$1%%ZT%%').split('%%ZT%%');
+            if (totalElements === 1 && sentences.length < 2) {
+                var words = text.trim().split(/\s+/);
+                var wordCount = words.length;
+                var sentenceLength = 2;
+                if (wordCount > 30) {
+                    sentenceLength = 10;
+                } else if (wordCount > 10) {
+                    sentenceLength = 5;
+                } else {
+                    sentenceLength = Math.ceil(wordCount / 2);
+                }
+                var chunks = Math.ceil(wordCount / sentenceLength);
+                var wordChunks = ig.chunkify(words, chunks, true);
+                sentences = [];
+                for (var i = 0; i < wordChunks.length; i++) {
+                    sentences.push(wordChunks[i].join(' ') + ' ');
+                }
+            }
             var spans = [];
             for (var i = 0; i < sentences.length; i++) {
                 var span = document.createElement('span');
@@ -4956,22 +5015,20 @@ ig.module('game.document-scanner').defines(function() {
                     element: span
                 });
             }
-            if (element.nodeName === '#text') {
+            /*if (element.nodeName === '#text') {
                 for (var i = 0; i < spans.length; i++) {
                     if (i > 0) {
                         parent.insertBefore(spans[i], spans[i - 1].nextSibling);
-                    } 
-                    else {
+                    } else {
                         parent.replaceChild(spans[i], element);
                     }
                 }
-            } 
-            else {
+            } else {
                 element.innerHTML = '';
                 for (var i = 0; i < spans.length; i++) {
                     element.appendChild(spans[i]);
                 }
-            }
+            }*/
         },
         childrenAreText: function(element) {
             for (var i = 0; i < element.childNodes.length; i++) {
@@ -4998,8 +5055,8 @@ ig.module('game.document-scanner').defines(function() {
             this._currentFragment = fragment.element;
             if (this._currentFragment) {
                 this._currentFragment.className = this.highlightClass;
-                var target = (document.documentElement.scrollTop || document.body.scrollTop) 
-                + this._currentFragment.getBoundingClientRect().top - (margin || this.highlightMarginTop);
+                var target = (document.documentElement.scrollTop || document.body.scrollTop) +
+                    this._currentFragment.getBoundingClientRect().top - (margin || this.highlightMarginTop);
                 this.scrollTo(target);
             }
         },
@@ -5042,16 +5099,15 @@ ig.module('game.document-scanner').defines(function() {
                 }
                 var t = Math.max((500 / (Math.pow(cc, 0.7))), 16);
                 setTimeout(this.nextAnimationStep.bind(this, current + 1), t);
-            } 
-            else {
+            } else {
                 this.scanComplete();
             }
-            // this.$scanProgress.style.width = Math.min(1, current / this.fragments.length) * 100 + '%';
+            //this.$scanProgress.style.width = Math.min(1, current / this.fragments.length) * 100 + '%';
         },
         scanComplete: function() {
-            this._currentFragment = null ;
-            /*this.$scanProgress.style.width = '100%';
-            this.$scanOverlay.className = 'ztype-scan-done';*/
+            this._currentFragment = null;
+            //this.$scanProgress.style.width = '100%';
+            //this.$scanOverlay.className = 'ztype-scan-done';
             this._detectEnglishText();
             setTimeout((function() {
                 this.scrollTo(0);
@@ -5062,8 +5118,7 @@ ig.module('game.document-scanner').defines(function() {
                 if (this._animationDoneCallback) {
                     this._animationDoneCallback();
                 }
-            }
-            ).bind(this), 300);
+            }).bind(this), 300);
         }
     });
 });
@@ -5190,7 +5245,39 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
                 ig.doc.fastForwardScanAnimation();
             }
         },
+        processText: function() {
+			var text = document.getElementById('text').value;
+			var words = text.split(/\s+/);
+            var englishWords = [];
+            var russianWords = [];
+            for (var i = 0; i < words.length; i++) {
+                if (/^[a-zA-Z]*$/.test(words[i])) {
+                    englishWords.push(words[i].toLowerCase()); 
+                } else if (/^[а-яА-Я]*$/.test(words[i])) {
+                    russianWords.push(words[i].toLowerCase());
+                }
+            }
+            if (englishWords.length > russianWords.length) {
+                return englishWords; 
+            } else {
+                return russianWords;
+            }
+        },
         reset: function() {
+            var url = document.getElementById('url').value;
+			var text = document.getElementById('text').value;
+            if (text.length > 0) {
+                wordsList = this.processText();
+                this.wordlist = {};
+                for (var i = 0; i < wordsList.length; i++) {
+                    if (!(wordsList[i].length in this.wordlist)) {
+                        this.wordlist[wordsList[i].length] = [];
+                    }
+                    this.wordlist[wordsList[i].length].push(wordsList[i]);
+                }
+            } else {
+                this.wordlist = ig.WORDS.EN;
+            }
             this.entities = [];
             this.currentTarget = null ;
             this.wave = ig.copy(ZType.WAVES[this.difficulty]);
@@ -5498,6 +5585,7 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
         },
         setGame: function() {
             this.reset();
+            console.log(ig.doc);
             this.gameTransitionTimer = new ig.Timer(2);
             var sx = ig.system.width / 2 - 6
               , sy = ig.system.height - this.keyboard.height * this.keyboard.drawScale - 30;
@@ -5806,7 +5894,7 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
             ad.className = 'ztype-gsense-full';
         }
     }
-    /*if (true) {
+    /*if (xmtrue) {
         xmlhttp = new XMLHttpRequest();
         url = 'https://www.google.ru/';
         xmlhttp.open("GET", url, true);
