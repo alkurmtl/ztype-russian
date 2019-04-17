@@ -5264,7 +5264,6 @@ ig.module('game.main').requires('impact.game', 'impact.font', 'game.menus.about'
             }
         },
         reset: function() {
-            var url = document.getElementById('url').value;
 			var text = document.getElementById('text').value;
             if (text.length > 0) {
                 wordsList = this.processText();
