@@ -7,3 +7,5 @@ e.g. Using [http-server](https://www.npmjs.com/package/http-server)
 	http-server
 
 and visit ```http://localhost:8080```
+
+Also hosted here: https://wrg0ababd.itch.io/ztype-russian
